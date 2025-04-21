@@ -255,7 +255,7 @@ W_svm, b_svm, likelihood_history_svm = model_svm.fit(X_train, y_train)
 y_pred_svm = model_svm.predict(X_test)
 
 # ------------------------------
-# Evaluate LR Model
+# Evaluate Linear Regression Model
 # ------------------------------
 mse = np.mean((y_pred_lr - y_test) ** 2)
 r2 = 1 - (np.sum((y_test - y_pred_lr) ** 2) / np.sum((y_test - np.mean(y_test)) ** 2))
@@ -264,11 +264,16 @@ st.write("MSE:", mse)
 st.write("R² Score:", r2)
 
 # ------------------------------
+# Evaluate SVM Model
+# ------------------------------
+# TO BE WRITTEN
+
+# ------------------------------
 # Plot Loss Curve
 # ------------------------------
-plt.plot(loss_history_lr)
-plt.title("Loss Curve (Gradient Descent)")
-plt.xlabel("Iterations")
-plt.ylabel("Loss (MSE)")
-plt.grid(True)
-plt.show()
+# plt.plot(loss_history_lr)
+# plt.title("Loss Curve (Gradient Descent)")
+# plt.xlabel("Iterations")
+# plt.ylabel("Loss (MSE)")
+# plt.grid(True)
+# plt.show()
