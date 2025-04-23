@@ -1,9 +1,11 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 ######Backend######
 class SVM(object):
@@ -178,11 +180,17 @@ class SVM(object):
             st.write({str(err)})
         return boundary
 
-class LinearRegressionGD:
-    def __init__(self, learning_rate=0.01, num_iterations=1000):
+class LogisticRegression:
+    def __init__(self, learning_rate=0.01, num_iterations=1000, lambda_param=0.01):
         self.learning_rate = learning_rate
         self.num_iterations = num_iterations
+        self.lambda_param = lambda_param # For regularizing
         self.loss_history = []
+        self.model_name = 'Logistic Regression'
+
+    def sigmoid(self, z): # Sigmoid activation function
+        z = np.clip(z, -500, 500)
+        return 1 / (1 + np.exp(-z))
 
     def fit(self, X, y):
         num_samples, num_features = X.shape
@@ -190,22 +198,76 @@ class LinearRegressionGD:
         self.b = 0
 
         for _ in range(self.num_iterations):
-            y_pred = np.dot(X, self.W) + self.b
-            error = y_pred - y
-
-            dW = (1 / num_samples) * np.dot(X.T, error)
-            db = (1 / num_samples) * np.sum(error)
-
+            # Forward pass
+            linear_model = np.dot(X, self.W) + self.b
+            y_pred = self.sigmoid(linear_model)
+            
+            # Compute gradients
+            dW = (1 / num_samples) * np.dot(X.T, (y_pred - y))
+            db = (1 / num_samples) * np.sum(y_pred - y)
+            
+            # Add L2 regularization to weights
+            dW += (self.lambda_param / num_samples) * self.W
+            
+            # Update parameters
             self.W -= self.learning_rate * dW
             self.b -= self.learning_rate * db
-
-            loss = (1 / (2 * num_samples)) * np.sum(error ** 2)
+            
+            # Compute loss (binary cross-entropy with regularization)
+            loss = -np.mean(y * np.log(y_pred + 1e-15) + (1 - y) * np.log(1 - y_pred + 1e-15))
+            loss += (self.lambda_param / (2 * num_samples)) * np.sum(self.W ** 2)  # L2 regularization
+            
             self.loss_history.append(loss)
-
+        
         return self.W, self.b, self.loss_history
 
+    def predict_proba(self, X): # Predict clss probabilities
+        linear_model = np.dot(X, self.W) + self.b
+        return self.sigmoid(linear_model)
+
     def predict(self, X):
-        return np.dot(X, self.W) + self.b
+        probas = self.predict_proba(X)
+        return (probas >= 0.5).astype(int)
+    
+    def fit_multiclass(self, X, y): # Train logistic regression for multi-class classification
+        self.classes_ = np.unique(y)
+        n_classes = len(self.classes_)
+        
+        # Initialize parameters for each class
+        self.W_multi = np.zeros((n_classes, X.shape[1]))
+        self.b_multi = np.zeros(n_classes)
+        self.loss_history_multi = []
+        
+        # Train a binary classifier for each class
+        for i, c in enumerate(self.classes_):
+            # Convert to binary problem
+            binary_y = (y == c).astype(int)
+            
+            # Train binary classifier
+            W, b, loss_history = self.fit(X, binary_y)
+            
+            # Store parameters
+            self.W_multi[i] = W
+            self.b_multi[i] = b
+            
+            if i == 0:
+                self.loss_history_multi = loss_history
+            else:
+                # Average loss across all classifiers
+                self.loss_history_multi = [(a + b) / 2 for a, b in zip(self.loss_history_multi, loss_history)]
+        
+        return self
+    
+    def predict_multiclass(self, X): # Predict class for multi-class classification
+        # Compute scores for each class
+        scores = np.zeros((X.shape[0], len(self.classes_)))
+        
+        for i, c in enumerate(self.classes_):
+            linear_model = np.dot(X, self.W_multi[i]) + self.b_multi[i]
+            scores[:, i] = self.sigmoid(linear_model)
+        
+        # Return class with highest probability
+        return self.classes_[np.argmax(scores, axis=1)]
 ######Frontend######
 
 st.markdown("# Mental Well-being Prediction Page")
@@ -239,11 +301,11 @@ X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, 
 # ------------------------------
 # Train Linear Regression Model
 # ------------------------------
-model_lr = LinearRegressionGD(learning_rate=0.01, num_iterations=1000)
-W_lr, b_lr, loss_history_lr = model_lr.fit(X_train, y_train)
+model_lr = LogisticRegression(learning_rate=0.01, num_iterations=1000, lambda_param=0.01)
+model_lr.fit_multiclass(X_train, y_train)
 
 # Predict on test set
-y_pred_lr = model_lr.predict(X_test)
+y_pred_lr = model_lr.predict_multiclass(X_test)
 
 # ------------------------------
 # Train SVM Model
@@ -255,25 +317,53 @@ W_svm, b_svm, likelihood_history_svm = model_svm.fit(X_train, y_train)
 y_pred_svm = model_svm.predict(X_test)
 
 # ------------------------------
-# Evaluate Linear Regression Model
+# Evaluate Models
 # ------------------------------
-mse = np.mean((y_pred_lr - y_test) ** 2)
-r2 = 1 - (np.sum((y_test - y_pred_lr) ** 2) / np.sum((y_test - np.mean(y_test)) ** 2))
+# Logistic regression
+accuracy_lr = accuracy_score(y_test, y_pred_lr)
+st.write("Logistic Regression accuracy:", accuracy_lr)
+st.write("Logistic Regression Classification report:")
+st.write(classification_report(y_test, y_pred_lr, zero_division=0))
 
-st.write("MSE:", mse)
-st.write("R² Score:", r2)
+# SVM
+accuracy_svm = accuracy_score(y_test, y_pred_svm)
+st.write("SVM Accuracy:", accuracy_svm)
+st.write("SVM Classification Report:")
+st.write(classification_report(y_test, y_pred_svm, zero_division=0))
 
 # ------------------------------
-# Evaluate SVM Model
+# Visualizations of Results
 # ------------------------------
-# TO BE WRITTEN
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
 
-# ------------------------------
-# Plot Loss Curve
-# ------------------------------
-# plt.plot(loss_history_lr)
-# plt.title("Loss Curve (Gradient Descent)")
-# plt.xlabel("Iterations")
-# plt.ylabel("Loss (MSE)")
-# plt.grid(True)
-# plt.show()
+# Plot confusion matrices
+cm_lr = confusion_matrix(y_test, y_pred_lr)
+sns.heatmap(cm_lr, annot=True, fmt='d', ax=ax1)
+ax1.set_title('Logistic Regression Confusion Matrix')
+ax1.set_xlabel('Predicted Label')
+ax1.set_ylabel('True Label')
+
+cm_svm = confusion_matrix(y_test, y_pred_svm)
+sns.heatmap(cm_svm, annot=True, fmt='d', ax=ax2)
+ax2.set_title('SVM Confusion Matrix')
+ax2.set_xlabel('Predicted Label')
+ax2.set_ylabel('True Label')
+
+st.pyplot(fig)
+
+# Plot training curves
+fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+
+ax1.plot(model_lr.loss_history_multi)
+ax1.set_title("Logistic Regression Loss Curve")
+ax1.set_xlabel("Iterations")
+ax1.set_ylabel("Binary Cross-Entropy Loss")
+ax1.grid(True)
+
+ax2.plot(likelihood_history_svm)
+ax2.set_title("SVM Likelihood History")
+ax2.set_xlabel("Iterations")
+ax2.set_ylabel("Negative Hinge Loss")
+ax2.grid(True)
+
+st.pyplot(fig2)
