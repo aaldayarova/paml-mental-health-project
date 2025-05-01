@@ -1,0 +1,172 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
+
+# Load and clean data
+df = pd.read_csv("student_depression_dataset.csv")
+
+# Rename columns
+df = df.rename(columns={
+    'Academic Pressure': 'AcademicPressure',
+    'Work Pressure': 'WorkPressure',
+    'Study Satisfaction': 'StudySatisfaction',
+    'Job Satisfaction': 'JobSatisfaction',
+    'Sleep Duration': 'SleepDuration',
+    'Dietary Habits': 'DietaryHabits',
+    'Have you ever had suicidal thoughts ?': 'SuicidalThoughts',
+    'Work/Study Hours': 'WSHours',
+    'Financial Stress': 'FinancialStress',
+    'Family History of Mental Illness': 'FamilyHistory'
+})
+
+# Drop irrelevant columns
+df = df.drop(columns=['id', 'City', 'Degree', 'Profession'])
+
+# Split
+train_data, test_data = train_test_split(df, test_size=0.2, random_state=42)
+y_train = train_data['Depression'].values
+y_test = test_data['Depression'].values
+
+qualiVars = ['Gender', 'SleepDuration', 'DietaryHabits', 'SuicidalThoughts', 'FamilyHistory',
+             'WorkPressure', 'AcademicPressure', 'StudySatisfaction', 'JobSatisfaction', 'FinancialStress']
+quantiVars = ['CGPA', 'Age', 'WSHours']
+
+# === Manual Imputation and Standardization ===
+
+# 1. Impute with median and compute mean/std manually
+means, stds = {}, {}
+
+def standardize_manual(col_data, col_name):
+    median = np.nanmedian(col_data)
+    col_data = np.where(np.isnan(col_data), median, col_data)  # Fill NaNs
+    mean = np.mean(col_data)
+    std = np.std(col_data)
+    means[col_name] = mean
+    stds[col_name] = std
+    return (col_data - mean) / std
+
+# Apply manual standardization
+X_train_quanti = np.column_stack([
+    standardize_manual(train_data[col].values, col) for col in quantiVars
+])
+X_test_quanti = np.column_stack([
+    (np.where(np.isnan(test_data[col]), np.nanmedian(train_data[col]), test_data[col]) - means[col]) / stds[col]
+    for col in quantiVars
+])
+
+# === One-Hot Encode Categorical Features ===
+encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+X_train_quali = encoder.fit_transform(train_data[qualiVars])
+X_test_quali = encoder.transform(test_data[qualiVars])
+
+# === Combine Final Features ===
+X_train_final = np.hstack((X_train_quanti, X_train_quali))
+X_test_final = np.hstack((X_test_quanti, X_test_quali))
+
+# === Linear Regression from Scratch ===
+class ScratchLinearRegression:
+    def __init__(self):
+        self.theta = None
+
+    def fit(self, X, y):
+        X_b = np.c_[np.ones((X.shape[0], 1)), X]  # add bias
+        self.theta = np.linalg.pinv(X_b.T @ X_b) @ X_b.T @ y
+
+    def predict(self, X):
+        X_b = np.c_[np.ones((X.shape[0], 1)), X]
+        return X_b @ self.theta
+
+    def evaluate(self, y_true, y_pred):
+        acc = accuracy_score(y_true, np.round(y_pred))
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        return acc, mae, r2
+
+# === Train and Evaluate ===
+model = ScratchLinearRegression()
+model.fit(X_train_final, y_train)
+
+# Predictions
+y_train_pred = model.predict(X_train_final)
+y_test_pred = model.predict(X_test_final)
+
+# Metrics
+train_acc, train_mae, train_r2 = model.evaluate(y_train, y_train_pred)
+test_acc, test_mae, test_r2 = model.evaluate(y_test, y_test_pred)
+
+print(f"Train: Accuracy={train_acc:.2f}, MAE={train_mae:.2f}, R²={train_r2:.2f}")
+print(f"Test:  Accuracy={test_acc:.2f}, MAE={test_mae:.2f}, R²={test_r2:.2f}")
+
+
+
+import numpy as np
+from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
+
+class ScratchSVM:
+    def __init__(self, learning_rate=0.01, regularization_param=0.1, max_iters=1000):
+        self.learning_rate = learning_rate
+        self.regularization_param = regularization_param
+        self.max_iters = max_iters
+        self.w = None  # Weights (coefficients)
+        self.b = None  # Bias term
+
+    def hinge_loss(self, X, y):
+        # Hinge loss for linear SVM
+        margin = y * (np.dot(X, self.w) + self.b)
+        loss = np.mean(np.maximum(0, 1 - margin))  # Hinge loss (with margin)
+        return loss
+
+    def fit(self, X, y):
+        # Initialize weights and bias
+        n_samples, n_features = X.shape
+        self.w = np.zeros(n_features)
+        self.b = 0
+
+        # Gradient descent
+        for i in range(self.max_iters):
+            margins = y * (np.dot(X, self.w) + self.b)
+            
+            # Compute gradients manually
+            dw = np.zeros_like(self.w)
+            db = 0
+
+            for j in range(n_samples):
+                if margins[j] < 1:  # If the sample is either misclassified or within the margin
+                    dw -= y[j] * X[j]
+                    db -= y[j]
+            
+            # Add regularization term to the gradient
+            dw += 2 * self.regularization_param * self.w
+
+            # Update weights and bias
+            self.w -= self.learning_rate * dw / n_samples
+            self.b -= self.learning_rate * db / n_samples
+
+    def predict(self, X):
+        # Prediction rule
+        return np.sign(np.dot(X, self.w) + self.b)
+
+    def evaluate(self, y_true, y_pred):
+        # Evaluate model performance
+        acc = accuracy_score(y_true, y_pred)
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        return acc, mae, r2
+
+# === Train and Evaluate the ScratchSVM Model ===
+
+svm_model_scratch = ScratchSVM(learning_rate=0.01, regularization_param=0.1, max_iters=1000)
+svm_model_scratch.fit(X_train_final, y_train)
+
+# Predictions
+y_train_pred_svm_scratch = svm_model_scratch.predict(X_train_final)
+y_test_pred_svm_scratch = svm_model_scratch.predict(X_test_final)
+
+# Metrics
+train_acc_svm, train_mae_svm, train_r2_svm = svm_model_scratch.evaluate(y_train, y_train_pred_svm_scratch)
+test_acc_svm, test_mae_svm, test_r2_svm = svm_model_scratch.evaluate(y_test, y_test_pred_svm_scratch)
+
+print(f"SVM Scratch Train: Accuracy={train_acc_svm:.2f}, MAE={train_mae_svm:.2f}, R²={train_r2_svm:.2f}")
+print(f"SVM Scratch Test:  Accuracy={test_acc_svm:.2f}, MAE={test_mae_svm:.2f}, R²={test_r2_svm:.2f}")
