@@ -144,6 +144,11 @@ class ScratchSVM:
             self.w -= self.learning_rate * dw / n_samples
             self.b -= self.learning_rate * db / n_samples
 
+            # === Print Loss Every 100 Iterations ===
+            if i % 100 == 0 or i == self.max_iters - 1:
+                loss = self.hinge_loss(X, y)
+                print(f"Iteration {i}, Hinge Loss: {loss:.4f}")
+                
     def predict(self, X):
         # Prediction rule
         return np.sign(np.dot(X, self.w) + self.b)
@@ -170,3 +175,72 @@ test_acc_svm, test_mae_svm, test_r2_svm = svm_model_scratch.evaluate(y_test, y_t
 
 print(f"SVM Scratch Train: Accuracy={train_acc_svm:.2f}, MAE={train_mae_svm:.2f}, R²={train_r2_svm:.2f}")
 print(f"SVM Scratch Test:  Accuracy={test_acc_svm:.2f}, MAE={test_mae_svm:.2f}, R²={test_r2_svm:.2f}")
+
+
+import numpy as np
+from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
+
+class ScratchLogisticRegression:
+    def __init__(self, learning_rate=0.01, regularization_param=0.1, max_iters=1000):
+        self.learning_rate = learning_rate
+        self.regularization_param = regularization_param
+        self.max_iters = max_iters
+        self.theta = None  # Weights (coefficients)
+
+    def sigmoid(self, z):
+        return 1 / (1 + np.exp(-z))  # Sigmoid function
+
+    def loss(self, X, y):
+        m = len(y)
+        predictions = self.sigmoid(np.dot(X, self.theta))
+        # Compute binary cross-entropy loss with regularization
+        return -1/m * (np.dot(y, np.log(predictions)) + np.dot((1 - y), np.log(1 - predictions))) + \
+               (self.regularization_param / (2 * m)) * np.sum(self.theta[1:] ** 2)
+
+    def fit(self, X, y):
+        # Initialize weights
+        n_samples, n_features = X.shape
+        self.theta = np.zeros(n_features)
+        
+        # Gradient descent
+        for i in range(self.max_iters):
+            predictions = self.sigmoid(np.dot(X, self.theta))
+            errors = predictions - y
+
+            # Compute gradients
+            gradient = np.dot(X.T, errors) / n_samples
+            regularization_gradient = (self.regularization_param / n_samples) * np.r_[[0], self.theta[1:]]
+            gradient += regularization_gradient
+
+            # Update weights
+            self.theta -= self.learning_rate * gradient
+
+            # Optionally, you can print the loss to monitor convergence
+            if i % 100 == 0:
+                print(f"Iteration {i}, Loss: {self.loss(X, y):.4f}")
+
+    def predict(self, X):
+        predictions = self.sigmoid(np.dot(X, self.theta))
+        return np.round(predictions)  # Return binary predictions (0 or 1)
+
+    def evaluate(self, y_true, y_pred):
+        acc = accuracy_score(y_true, y_pred)
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        return acc, mae, r2
+
+# === Train and Evaluate the Scratch Logistic Regression Model ===
+
+logreg_model_scratch = ScratchLogisticRegression(learning_rate=0.01, regularization_param=0.1, max_iters=1000)
+logreg_model_scratch.fit(X_train_final, y_train)
+
+# Predictions
+y_train_pred_logreg_scratch = logreg_model_scratch.predict(X_train_final)
+y_test_pred_logreg_scratch = logreg_model_scratch.predict(X_test_final)
+
+# Metrics
+train_acc_logreg, train_mae_logreg, train_r2_logreg = logreg_model_scratch.evaluate(y_train, y_train_pred_logreg_scratch)
+test_acc_logreg, test_mae_logreg, test_r2_logreg = logreg_model_scratch.evaluate(y_test, y_test_pred_logreg_scratch)
+
+print(f"Logistic Regression Scratch Train: Accuracy={train_acc_logreg:.2f}, MAE={train_mae_logreg:.2f}, R²={train_r2_logreg:.2f}")
+print(f"Logistic Regression Scratch Test:  Accuracy={test_acc_logreg:.2f}, MAE={test_mae_logreg:.2f}, R²={test_r2_logreg:.2f}")
