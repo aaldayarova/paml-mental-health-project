@@ -1,369 +1,246 @@
-import streamlit as st
-import numpy as np
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
 
-######Backend######
-class SVM(object):
-    def __init__(self, learning_rate=0.001, num_iterations=500, lambda_param=0.01):
-        self.model_name = 'Support Vector Machine'
-        self.learning_rate = learning_rate
-        self.lambda_param = lambda_param
-        self.num_iterations = num_iterations
-        self.likelihood_history = []
-    
-    def predict_score(self, X):
-        """
-        Produces raw decision values before thresholding
-        Inputs:
-            - X: Input features
-        Outputs:
-            - scores: Raw SVM decision values
-        """
-        try:
-            scores = np.dot(X, self.W) + self.b  # Compute raw decision values
-        except ValueError as err:
-            st.write(str(err))  # Print error messages properly
-            return None  # Return None in case of an error
+# Load and clean data
+df = pd.read_csv("../student_depression_dataset.csv")
 
-        return scores  # Return the computed scores
-    
-    def compute_hinge_loss(self, X, Y):
-        """
-        Compute the hinge loss for SVM using X, Y, and self.W
-        Inputs:
-            - X: Input features
-            - Y: Ground truth labels
-        Outputs:
-            - loss: Computed hinge loss
-        """
-        loss = None
-        try:
-            # Compute the decision scores
-            scores = np.dot(X, self.W) + self.b
-            
-            # Compute hinge loss for each sample
-            hinge_losses = np.maximum(0, 1 - Y * scores)
-            
-            # Compute total hinge loss with regularization
-            loss = np.mean(hinge_losses) + (self.lambda_param / 2) * np.sum(self.W ** 2)
-        
-        except ValueError as err:
-            st.write({str(err)})
+# Rename columns
+df = df.rename(columns={
+    'Academic Pressure': 'AcademicPressure',
+    'Work Pressure': 'WorkPressure',
+    'Study Satisfaction': 'StudySatisfaction',
+    'Job Satisfaction': 'JobSatisfaction',
+    'Sleep Duration': 'SleepDuration',
+    'Dietary Habits': 'DietaryHabits',
+    'Have you ever had suicidal thoughts ?': 'SuicidalThoughts',
+    'Work/Study Hours': 'WSHours',
+    'Financial Stress': 'FinancialStress',
+    'Family History of Mental Illness': 'FamilyHistory'
+})
 
-        return loss
+# Drop irrelevant columns
+df = df.drop(columns=['id', 'City', 'Degree', 'Profession'])
 
-    def update_weights(self):
-        """
-        Compute SVM derivative using gradient descent and update weights.
-        
-        Inputs:
-            - None
-        
-        Outputs:
-            - self: The trained SVM model
-            - self.W: Weight vector updated based on gradient descent
-            - self.b: Bias term updated based on gradient descent
-            - self.likelihood_history: History of log likelihood
-        """
-        try:
-            # Compute decision scores (raw predictions)
-            scores = self.predict_score(self.X)
+# Split
+train_data, test_data = train_test_split(df, test_size=0.2, random_state=42)
+y_train = train_data['Depression'].values
+y_test = test_data['Depression'].values
 
-            # Compute hinge loss margin
-            margin = self.Y * scores
-            misclassified = margin < 1  # Instances where hinge loss is active
+qualiVars = ['Gender', 'SleepDuration', 'DietaryHabits', 'SuicidalThoughts', 'FamilyHistory',
+             'WorkPressure', 'AcademicPressure', 'StudySatisfaction', 'JobSatisfaction', 'FinancialStress']
+quantiVars = ['CGPA', 'Age', 'WSHours']
 
-            # Compute gradients
-            N = self.X.shape[0]
-            dW = np.dot(self.X.T, -self.Y * misclassified) / N
-            db = np.sum(-self.Y * misclassified) / N
+# === Manual Imputation and Standardization ===
 
-            # Regularization term (L2 for SVM)
-            dW += self.lambda_param * self.W / N  # Regularization term
+# 1. Impute with median and compute mean/std manually
+means, stds = {}, {}
 
-            # Update weights using gradient descent
-            self.W -= self.learning_rate * dW
-            self.b -= self.learning_rate * db
+def standardize_manual(col_data, col_name):
+    median = np.nanmedian(col_data)
+    col_data = np.where(np.isnan(col_data), median, col_data)  # Fill NaNs
+    mean = np.mean(col_data)
+    std = np.std(col_data)
+    means[col_name] = mean
+    stds[col_name] = std
+    return (col_data - mean) / std
 
-            # Compute the hinge loss with regularization
-            hinge_loss = np.mean(np.maximum(0, 1 - self.Y * scores)) + (self.lambda_param / 2) * np.sum(self.W ** 2)
-            
-            # The likelihood is typically the negative of the hinge loss
-            likelihood = -hinge_loss
-            
-            # Store likelihood history (use negative log-likelihood if expected)
-            self.likelihood_history.append(likelihood)
+# Apply manual standardization
+X_train_quanti = np.column_stack([
+    standardize_manual(train_data[col].values, col) for col in quantiVars
+])
+X_test_quanti = np.column_stack([
+    (np.where(np.isnan(test_data[col]), np.nanmedian(train_data[col]), test_data[col]) - means[col]) / stds[col]
+    for col in quantiVars
+])
 
-        except ValueError as err:
-            st.write(str(err))
+# === One-Hot Encode Categorical Features ===
+encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+X_train_quali = encoder.fit_transform(train_data[qualiVars])
+X_test_quali = encoder.transform(test_data[qualiVars])
 
-        return self
+# === Combine Final Features ===
+X_train_final = np.hstack((X_train_quanti, X_train_quali))
+X_test_final = np.hstack((X_test_quanti, X_test_quali))
 
-    def predict(self, X):
-        """
-        Predicts class labels using the trained SVM model.
-        
-        Inputs:
-            - X: Input features
-        
-        Outputs:
-            - y_pred: List of predicted classes (-1 or +1)
-        """
-        try:
-            # Compute the raw decision scores using the trained model
-            scores = self.predict_score(X)
-
-            # Apply thresholding to classify into -1 or +1
-            y_pred = np.where(scores >= 0, 1, -1)
-
-        except ValueError as err:
-            st.write(str(err))  # Handle errors properly
-
-        return y_pred
-
-    def fit(self, X, Y):
-        """
-        Train SVM using gradient descent.
-        Inputs:
-            - X: Input features
-            - Y: True class labels (-1 or +1)
-        Outputs:
-            - self: Trained SVM model
-        """
-        try:
-            num_examples, num_features = X.shape
-            self.W = np.zeros(num_features)
-            self.b = 0
-            self.likelihood_history = []
-
-            # Train SVM using gradient descent
-            for _ in range(self.num_iterations):
-                scores = self.predict_score(X)
-                indicator = (Y * scores) < 1
-                
-                dW = (-np.dot(X.T, (Y * indicator)) + 2 * self.lambda_param * self.W ) / num_examples
-                db = -np.sum(Y * indicator) / num_examples
-                
-                self.W -= self.learning_rate * dW
-                self.b -= self.learning_rate * db
-                
-                loss = self.compute_hinge_loss(X, Y)
-                self.likelihood_history.append(-loss)
-            return self.W, self.b, self.likelihood_history
-
-        except ValueError as err:
-            st.write({str(err)})
-
-    # Helper Function
-    def decision_boundary(self, feat_ids):
-        """
-        Compute decision boundary values where P(y_i = +1 | x_i) equals P(y_i = -1 | x_i).
-        Inputs:
-            - feat_ids: Array of feature indices to compute the decision boundary.
-        Outputs:
-            - boundary: Array containing feature values corresponding to the decision boundary.
-        """
-        boundary=[]
-        try:
-            # Extract relevant weight components
-            W_ks = self.W[feat_ids]
-            # Compute boundary values
-            boundary = - self.b / W_ks
-            # Handle edge cases
-            boundary = np.nan_to_num(boundary, posinf=0, neginf=0)
-        except ValueError as err:
-            st.write({str(err)})
-        return boundary
-
-class LogisticRegression:
-    def __init__(self, learning_rate=0.01, num_iterations=1000, lambda_param=0.01):
-        self.learning_rate = learning_rate
-        self.num_iterations = num_iterations
-        self.lambda_param = lambda_param # For regularizing
-        self.loss_history = []
-        self.model_name = 'Logistic Regression'
-
-    def sigmoid(self, z): # Sigmoid activation function
-        z = np.clip(z, -500, 500)
-        return 1 / (1 + np.exp(-z))
+# === Linear Regression from Scratch ===
+class ScratchLinearRegression:
+    def __init__(self):
+        self.theta = None
 
     def fit(self, X, y):
-        num_samples, num_features = X.shape
-        self.W = np.zeros(num_features)
-        self.b = 0
-
-        for _ in range(self.num_iterations):
-            # Forward pass
-            linear_model = np.dot(X, self.W) + self.b
-            y_pred = self.sigmoid(linear_model)
-            
-            # Compute gradients
-            dW = (1 / num_samples) * np.dot(X.T, (y_pred - y))
-            db = (1 / num_samples) * np.sum(y_pred - y)
-            
-            # Add L2 regularization to weights
-            dW += (self.lambda_param / num_samples) * self.W
-            
-            # Update parameters
-            self.W -= self.learning_rate * dW
-            self.b -= self.learning_rate * db
-            
-            # Compute loss (binary cross-entropy with regularization)
-            loss = -np.mean(y * np.log(y_pred + 1e-15) + (1 - y) * np.log(1 - y_pred + 1e-15))
-            loss += (self.lambda_param / (2 * num_samples)) * np.sum(self.W ** 2)  # L2 regularization
-            
-            self.loss_history.append(loss)
-        
-        return self.W, self.b, self.loss_history
-
-    def predict_proba(self, X): # Predict clss probabilities
-        linear_model = np.dot(X, self.W) + self.b
-        return self.sigmoid(linear_model)
+        X_b = np.c_[np.ones((X.shape[0], 1)), X]  # add bias
+        self.theta = np.linalg.pinv(X_b.T @ X_b) @ X_b.T @ y
 
     def predict(self, X):
-        probas = self.predict_proba(X)
-        return (probas >= 0.5).astype(int)
-    
-    def fit_multiclass(self, X, y): # Train logistic regression for multi-class classification
-        self.classes_ = np.unique(y)
-        n_classes = len(self.classes_)
-        
-        # Initialize parameters for each class
-        self.W_multi = np.zeros((n_classes, X.shape[1]))
-        self.b_multi = np.zeros(n_classes)
-        self.loss_history_multi = []
-        
-        # Train a binary classifier for each class
-        for i, c in enumerate(self.classes_):
-            # Convert to binary problem
-            binary_y = (y == c).astype(int)
+        X_b = np.c_[np.ones((X.shape[0], 1)), X]
+        return X_b @ self.theta
+
+    def evaluate(self, y_true, y_pred):
+        acc = accuracy_score(y_true, np.round(y_pred))
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        return acc, mae, r2
+
+# === Train and Evaluate ===
+model = ScratchLinearRegression()
+model.fit(X_train_final, y_train)
+
+# Predictions
+y_train_pred = model.predict(X_train_final)
+y_test_pred = model.predict(X_test_final)
+
+# Metrics
+train_acc, train_mae, train_r2 = model.evaluate(y_train, y_train_pred)
+test_acc, test_mae, test_r2 = model.evaluate(y_test, y_test_pred)
+
+print(f"Train: Accuracy={train_acc:.2f}, MAE={train_mae:.2f}, R²={train_r2:.2f}")
+print(f"Test:  Accuracy={test_acc:.2f}, MAE={test_mae:.2f}, R²={test_r2:.2f}")
+
+
+
+import numpy as np
+from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
+
+class ScratchSVM:
+    def __init__(self, learning_rate=0.01, regularization_param=0.1, max_iters=1000):
+        self.learning_rate = learning_rate
+        self.regularization_param = regularization_param
+        self.max_iters = max_iters
+        self.w = None  # Weights (coefficients)
+        self.b = None  # Bias term
+
+    def hinge_loss(self, X, y):
+        # Hinge loss for linear SVM
+        margin = y * (np.dot(X, self.w) + self.b)
+        loss = np.mean(np.maximum(0, 1 - margin))  # Hinge loss (with margin)
+        return loss
+
+    def fit(self, X, y):
+        # Initialize weights and bias
+        n_samples, n_features = X.shape
+        self.w = np.zeros(n_features)
+        self.b = 0
+
+        # Gradient descent
+        for i in range(self.max_iters):
+            margins = y * (np.dot(X, self.w) + self.b)
             
-            # Train binary classifier
-            W, b, loss_history = self.fit(X, binary_y)
+            # Compute gradients manually
+            dw = np.zeros_like(self.w)
+            db = 0
+
+            for j in range(n_samples):
+                if margins[j] < 1:  # If the sample is either misclassified or within the margin
+                    dw -= y[j] * X[j]
+                    db -= y[j]
             
-            # Store parameters
-            self.W_multi[i] = W
-            self.b_multi[i] = b
-            
-            if i == 0:
-                self.loss_history_multi = loss_history
-            else:
-                # Average loss across all classifiers
-                self.loss_history_multi = [(a + b) / 2 for a, b in zip(self.loss_history_multi, loss_history)]
+            # Add regularization term to the gradient
+            dw += 2 * self.regularization_param * self.w
+
+            # Update weights and bias
+            self.w -= self.learning_rate * dw / n_samples
+            self.b -= self.learning_rate * db / n_samples
+
+            # === Print Loss Every 100 Iterations ===
+            if i % 100 == 0 or i == self.max_iters - 1:
+                loss = self.hinge_loss(X, y)
+                print(f"Iteration {i}, Hinge Loss: {loss:.4f}")
+                
+    def predict(self, X):
+        # Prediction rule
+        return np.sign(np.dot(X, self.w) + self.b)
+
+    def evaluate(self, y_true, y_pred):
+        # Evaluate model performance
+        acc = accuracy_score(y_true, y_pred)
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        return acc, mae, r2
+
+# === Train and Evaluate the ScratchSVM Model ===
+
+svm_model_scratch = ScratchSVM(learning_rate=0.01, regularization_param=0.1, max_iters=1000)
+svm_model_scratch.fit(X_train_final, y_train)
+
+# Predictions
+y_train_pred_svm_scratch = svm_model_scratch.predict(X_train_final)
+y_test_pred_svm_scratch = svm_model_scratch.predict(X_test_final)
+
+# Metrics
+train_acc_svm, train_mae_svm, train_r2_svm = svm_model_scratch.evaluate(y_train, y_train_pred_svm_scratch)
+test_acc_svm, test_mae_svm, test_r2_svm = svm_model_scratch.evaluate(y_test, y_test_pred_svm_scratch)
+
+print(f"SVM Scratch Train: Accuracy={train_acc_svm:.2f}, MAE={train_mae_svm:.2f}, R²={train_r2_svm:.2f}")
+print(f"SVM Scratch Test:  Accuracy={test_acc_svm:.2f}, MAE={test_mae_svm:.2f}, R²={test_r2_svm:.2f}")
+
+
+import numpy as np
+from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
+
+class ScratchLogisticRegression:
+    def __init__(self, learning_rate=0.01, regularization_param=0.1, max_iters=1000):
+        self.learning_rate = learning_rate
+        self.regularization_param = regularization_param
+        self.max_iters = max_iters
+        self.theta = None  # Weights (coefficients)
+
+    def sigmoid(self, z):
+        return 1 / (1 + np.exp(-z))  # Sigmoid function
+
+    def loss(self, X, y):
+        m = len(y)
+        predictions = self.sigmoid(np.dot(X, self.theta))
+        # Compute binary cross-entropy loss with regularization
+        return -1/m * (np.dot(y, np.log(predictions)) + np.dot((1 - y), np.log(1 - predictions))) + \
+               (self.regularization_param / (2 * m)) * np.sum(self.theta[1:] ** 2)
+
+    def fit(self, X, y):
+        # Initialize weights
+        n_samples, n_features = X.shape
+        self.theta = np.zeros(n_features)
         
-        return self
-    
-    def predict_multiclass(self, X): # Predict class for multi-class classification
-        # Compute scores for each class
-        scores = np.zeros((X.shape[0], len(self.classes_)))
-        
-        for i, c in enumerate(self.classes_):
-            linear_model = np.dot(X, self.W_multi[i]) + self.b_multi[i]
-            scores[:, i] = self.sigmoid(linear_model)
-        
-        # Return class with highest probability
-        return self.classes_[np.argmax(scores, axis=1)]
-######Frontend######
+        # Gradient descent
+        for i in range(self.max_iters):
+            predictions = self.sigmoid(np.dot(X, self.theta))
+            errors = predictions - y
 
-st.markdown("# Mental Well-being Prediction Page")
-st.markdown("This page is under development!")
+            # Compute gradients
+            gradient = np.dot(X.T, errors) / n_samples
+            regularization_gradient = (self.regularization_param / n_samples) * np.r_[[0], self.theta[1:]]
+            gradient += regularization_gradient
 
-df = pd.read_csv("dataset.csv")
+            # Update weights
+            self.theta -= self.learning_rate * gradient
 
-# Select target and features
-target = 'Mental Health Condition'
-X = df.drop(columns=['Mental Health Condition'])
-y = df[target]
+            # Optionally, you can print the loss to monitor convergence
+            if i % 100 == 0:
+                print(f"Iteration {i}, Loss: {self.loss(X, y):.4f}")
 
-# Encode categorical variables
-X = pd.get_dummies(X, drop_first=True)
-# st.write(df.columns)
+    def predict(self, X):
+        predictions = self.sigmoid(np.dot(X, self.theta))
+        return np.round(predictions)  # Return binary predictions (0 or 1)
 
-# Encode the target variable {e.g., 0,1,2,3 instead of PTSD, Anxiety, Bipolar, Healthy}
-labeler = LabelEncoder()
-y = labeler.fit_transform(y)
-# To convert back to labels:
-# predictions = model.predict(X_test)
-# original_categories = label_encoder.inverse_transform(predictions)
+    def evaluate(self, y_true, y_pred):
+        acc = accuracy_score(y_true, y_pred)
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        return acc, mae, r2
 
-# Normalize features
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+# === Train and Evaluate the Scratch Logistic Regression Model ===
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+logreg_model_scratch = ScratchLogisticRegression(learning_rate=0.01, regularization_param=0.1, max_iters=1000)
+logreg_model_scratch.fit(X_train_final, y_train)
 
-# ------------------------------
-# Train Linear Regression Model
-# ------------------------------
-model_lr = LogisticRegression(learning_rate=0.01, num_iterations=1000, lambda_param=0.01)
-model_lr.fit_multiclass(X_train, y_train)
+# Predictions
+y_train_pred_logreg_scratch = logreg_model_scratch.predict(X_train_final)
+y_test_pred_logreg_scratch = logreg_model_scratch.predict(X_test_final)
 
-# Predict on test set
-y_pred_lr = model_lr.predict_multiclass(X_test)
+# Metrics
+train_acc_logreg, train_mae_logreg, train_r2_logreg = logreg_model_scratch.evaluate(y_train, y_train_pred_logreg_scratch)
+test_acc_logreg, test_mae_logreg, test_r2_logreg = logreg_model_scratch.evaluate(y_test, y_test_pred_logreg_scratch)
 
-# ------------------------------
-# Train SVM Model
-# ------------------------------
-model_svm = SVM(learning_rate=0.001, num_iterations=500, lambda_param=0.01)
-W_svm, b_svm, likelihood_history_svm = model_svm.fit(X_train, y_train)
-
-# Predict on test set
-y_pred_svm = model_svm.predict(X_test)
-
-# ------------------------------
-# Evaluate Models
-# ------------------------------
-# Logistic regression
-accuracy_lr = accuracy_score(y_test, y_pred_lr)
-st.write("Logistic Regression accuracy:", accuracy_lr)
-st.write("Logistic Regression Classification report:")
-st.write(classification_report(y_test, y_pred_lr, zero_division=0))
-
-# SVM
-accuracy_svm = accuracy_score(y_test, y_pred_svm)
-st.write("SVM Accuracy:", accuracy_svm)
-st.write("SVM Classification Report:")
-st.write(classification_report(y_test, y_pred_svm, zero_division=0))
-
-# ------------------------------
-# Visualizations of Results
-# ------------------------------
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
-
-# Plot confusion matrices
-cm_lr = confusion_matrix(y_test, y_pred_lr)
-sns.heatmap(cm_lr, annot=True, fmt='d', ax=ax1)
-ax1.set_title('Logistic Regression Confusion Matrix')
-ax1.set_xlabel('Predicted Label')
-ax1.set_ylabel('True Label')
-
-cm_svm = confusion_matrix(y_test, y_pred_svm)
-sns.heatmap(cm_svm, annot=True, fmt='d', ax=ax2)
-ax2.set_title('SVM Confusion Matrix')
-ax2.set_xlabel('Predicted Label')
-ax2.set_ylabel('True Label')
-
-st.pyplot(fig)
-
-# Plot training curves
-fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
-
-ax1.plot(model_lr.loss_history_multi)
-ax1.set_title("Logistic Regression Loss Curve")
-ax1.set_xlabel("Iterations")
-ax1.set_ylabel("Binary Cross-Entropy Loss")
-ax1.grid(True)
-
-ax2.plot(likelihood_history_svm)
-ax2.set_title("SVM Likelihood History")
-ax2.set_xlabel("Iterations")
-ax2.set_ylabel("Negative Hinge Loss")
-ax2.grid(True)
-
-st.pyplot(fig2)
+print(f"Logistic Regression Scratch Train: Accuracy={train_acc_logreg:.2f}, MAE={train_mae_logreg:.2f}, R²={train_r2_logreg:.2f}")
+print(f"Logistic Regression Scratch Test:  Accuracy={test_acc_logreg:.2f}, MAE={test_mae_logreg:.2f}, R²={test_r2_logreg:.2f}")
