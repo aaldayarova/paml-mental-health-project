@@ -1,6 +1,10 @@
 import streamlit as st
 import Recommendation
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 st.title("Mental Health Prediction & Support")
 
 st.write(
