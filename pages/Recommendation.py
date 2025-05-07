@@ -7,31 +7,35 @@ from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
 # Load and clean data
 df = pd.read_csv("../student_depression_dataset.csv")
 
-# Rename columns
+# Rename columns to match our code usage
 df = df.rename(columns={
-    'Academic Pressure': 'AcademicPressure',
-    'Work Pressure': 'WorkPressure',
-    'Study Satisfaction': 'StudySatisfaction',
-    'Job Satisfaction': 'JobSatisfaction',
-    'Sleep Duration': 'SleepDuration',
-    'Dietary Habits': 'DietaryHabits',
-    'Have you ever had suicidal thoughts ?': 'SuicidalThoughts',
-    'Work/Study Hours': 'WSHours',
-    'Financial Stress': 'FinancialStress',
-    'Family History of Mental Illness': 'FamilyHistory'
+    'Gender': 'gender',
+    'Age': 'age',
+    'Academic Pressure': 'academic_pressure',
+    'Work Pressure': 'work_pressure',
+    'Study Satisfaction': 'study_satisfaction',
+    'Job Satisfaction': 'job_satisfaction',
+    'Sleep Duration': 'sleep_duration',
+    'Dietary Habits': 'dietary_habits',
+    'Have you ever had suicidal thoughts ?': 'suicidal_thoughts',
+    'Work/Study Hours': 'work_study_hours',
+    'Financial Stress': 'financial_stress',
+    'Family History of Mental Illness': 'family_history',
+    'Depression': 'depression'
 })
 
-# Drop irrelevant columns
-df = df.drop(columns=['id', 'City', 'Degree', 'Profession'])
+
+df = df.drop(columns=['id', 'City', 'Degree', 'Profession', 'CGPA'])
 
 # Split
 train_data, test_data = train_test_split(df, test_size=0.2, random_state=42)
-y_train = train_data['Depression'].values
-y_test = test_data['Depression'].values
+y_train = train_data['depression'].values
+y_test = test_data['depression'].values
 
-qualiVars = ['Gender', 'SleepDuration', 'DietaryHabits', 'SuicidalThoughts', 'FamilyHistory',
-             'WorkPressure', 'AcademicPressure', 'StudySatisfaction', 'JobSatisfaction', 'FinancialStress']
-quantiVars = ['CGPA', 'Age', 'WSHours']
+# Define qualitative and quantitative variables with consistent snake_case naming
+quali_vars = ['gender', 'sleep_duration', 'dietary_habits', 'suicidal_thoughts', 'family_history',
+            'work_pressure', 'academic_pressure', 'study_satisfaction', 'job_satisfaction', 'financial_stress']
+quanti_vars = ['age', 'work_study_hours']
 
 # === Manual Imputation and Standardization ===
 
@@ -49,17 +53,17 @@ def standardize_manual(col_data, col_name):
 
 # Apply manual standardization
 X_train_quanti = np.column_stack([
-    standardize_manual(train_data[col].values, col) for col in quantiVars
+    standardize_manual(train_data[col].values, col) for col in quanti_vars
 ])
 X_test_quanti = np.column_stack([
     (np.where(np.isnan(test_data[col]), np.nanmedian(train_data[col]), test_data[col]) - means[col]) / stds[col]
-    for col in quantiVars
+    for col in quanti_vars
 ])
 
 # === One-Hot Encode Categorical Features ===
 encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-X_train_quali = encoder.fit_transform(train_data[qualiVars])
-X_test_quali = encoder.transform(test_data[qualiVars])
+X_train_quali = encoder.fit_transform(train_data[quali_vars])
+X_test_quali = encoder.transform(test_data[quali_vars])
 
 # === Combine Final Features ===
 X_train_final = np.hstack((X_train_quanti, X_train_quali))
@@ -244,3 +248,68 @@ test_acc_logreg, test_mae_logreg, test_r2_logreg = logreg_model_scratch.evaluate
 
 print(f"Logistic Regression Scratch Train: Accuracy={train_acc_logreg:.2f}, MAE={train_mae_logreg:.2f}, R²={train_r2_logreg:.2f}")
 print(f"Logistic Regression Scratch Test:  Accuracy={test_acc_logreg:.2f}, MAE={test_mae_logreg:.2f}, R²={test_r2_logreg:.2f}")
+
+def process_user_assessment(assessment_data):
+    """
+    Process user assessment data and return predictions from our models.
+    
+    Args:
+        assessment_data (dict): Dictionary containing user assessment responses
+    Returns:
+        dict: Dictionary containing predictions from different models
+    """
+    # Create a single row dataframe with the same structure as our training data
+    user_data = pd.DataFrame([{
+        'gender': assessment_data['gender'].lower(),  # Convert to lowercase to match our features
+        'age': float(assessment_data['age']),
+        'work_study_hours': float(assessment_data['work_study_hours']),
+        'academic_pressure': assessment_data['academic_pressure'],
+        'work_pressure': assessment_data['work_pressure'],
+        'study_satisfaction': assessment_data['study_satisfaction'],
+        'job_satisfaction': assessment_data['job_satisfaction'],
+        'sleep_duration': assessment_data['sleep_duration'],
+        'dietary_habits': assessment_data['dietary_habits'],
+        'suicidal_thoughts': assessment_data['suicidal_thoughts'],
+        'financial_stress': assessment_data['financial_stress'],
+        'family_history': assessment_data['family_history']
+    }])
+
+    # Process quantitative variables
+    X_user_quanti = np.column_stack([
+        (np.where(np.isnan(user_data[col]), np.nanmedian(train_data[col]), user_data[col]) - means[col]) / stds[col]
+        for col in quanti_vars
+    ])
+
+    # Process categorical variables
+    X_user_quali = encoder.transform(user_data[quali_vars])
+
+    # Combine features
+    X_user_final = np.hstack((X_user_quanti, X_user_quali))
+
+    # Get predictions from all models
+    linear_pred = model.predict(X_user_final)[0]
+    svm_pred = svm_model_scratch.predict(X_user_final)[0]
+    logreg_pred = logreg_model_scratch.predict(X_user_final)[0]
+
+    # Calculate confidence scores (using sigmoid for linear regression)
+    def sigmoid(x):
+        return 1 / (1 + np.exp(-x))
+
+    linear_confidence = sigmoid(linear_pred) * 100
+    svm_confidence = abs(np.dot(X_user_final[0], svm_model_scratch.w) + svm_model_scratch.b) * 100
+    logreg_confidence = logreg_model_scratch.sigmoid(np.dot(X_user_final[0], logreg_model_scratch.theta)) * 100
+
+    # Average the confidence scores
+    average_confidence = np.mean([linear_confidence, svm_confidence, logreg_confidence])
+
+    return {
+        'linear_prediction': bool(round(linear_pred)),
+        'svm_prediction': bool(svm_pred > 0),
+        'logreg_prediction': bool(logreg_pred),
+        'confidence': average_confidence,
+        'individual_scores': {
+            'linear': linear_confidence,
+            'svm': svm_confidence,
+            'logistic': logreg_confidence
+        }
+    }
