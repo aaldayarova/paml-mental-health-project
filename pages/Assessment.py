@@ -11,6 +11,7 @@ st.title("Mental Health Prediction & Support")
 st.write(
     "This assessment collects information about your lifestyle and well-being. "
     "Your answers will be used to provide personalized insights and support. "
+    "Your answers will remain confidential and anynonmous. The results of this assessment will not be shared with anyone. "
     "**Note:** This is not a diagnosis."
 )
 

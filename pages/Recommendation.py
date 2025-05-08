@@ -5,7 +5,12 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
 
 # Load and clean data
-df = pd.read_csv("../student_depression_dataset.csv")
+import os
+
+BASE_DIR = os.path.dirname(__file__)
+csv_path = os.path.join(BASE_DIR, '..', 'student_depression_dataset.csv')
+df = pd.read_csv(csv_path)
+
 
 # Rename columns to match our code usage
 df = df.rename(columns={
