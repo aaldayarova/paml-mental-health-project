@@ -2,30 +2,165 @@ import streamlit as st
 import sys
 from pathlib import Path
 
-# Add the parent directory to sys.path to allow imports from sibling modules
 sys.path.append(str(Path(__file__).parent))
 from utils.Recommendation import process_user_assessment
+
+st.markdown("""
+<style>
+    /* Main container styling */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    /* Header styling */
+    h1 {
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+    }
+    
+    h2 {
+        font-weight: 600;
+        color: #333333;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+            
+    /* Section headers styling */
+    .section-header {
+        color: #333333;
+        font-weight: 600;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+            
+    .section-banner {
+        background-color: #F6F6F8;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    /* Form styling */
+    .stForm {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+            
+    /* Input field styling */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input {
+        border-radius: 5px;
+        border: 1px solid #E0E0E0;
+        padding: 10px;
+    }
+    
+    /* Slider styling */
+    .stSlider {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+            
+    /* Radio button styling */
+    .stRadio > div {
+        padding: 10px 0;
+    }
+            
+    /* Select box styling */
+    .stSelectbox > div > div > div {
+        border-radius: 5px;
+        border: 1px solid #E0E0E0;
+    }
+    
+    /* Button styling */
+    .stButton>button {
+        background-color: #4B7BF5;
+        color: white;
+        font-weight: 500;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        border: none;
+        transition: background-color 0.3s;
+    }
+    
+    .stButton>button:hover {
+        background-color: #3A6AD4;
+    }
+            
+    /* Section divider */
+    hr {
+        margin: 2rem 0;
+        border: none;
+        height: 1px;
+        background-color: #e0e0e0;
+    }
+    
+    /* Results cards styling */
+    .results-card {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Gauge styling */
+    .gauge-container {
+        text-align: center;
+        padding: 1rem 0;
+    }
+    
+    /* Recommendations styling */
+    .recommendation-item {
+        padding: 0.5rem 0;
+    }
+    
+    /* Action buttons styling */
+    .action-button {
+        background-color: #4B7BF5;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 5px;
+        text-align: center;
+        margin-top: 1rem;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    
+    .action-button.secondary {
+        background-color: #8BA3E0;
+    }
+    
+    .action-button:hover {
+        background-color: #3A6AD4;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 st.title("Mental Health Prediction & Support")
 
 st.write(
-    "This assessment collects information about your lifestyle and well-being. "
-    "Your answers will be used to provide personalized insights and support. "
-    "Your answers will remain confidential and anynonmous. The results of this assessment will not be shared with anyone. "
+    "This assessment collects information about your lifestyle and well-being."
+    "Your answers will be used to provide insights in your mental health and offer personalized support and recommendations."
+    "Your answers will remain confidential and anonymous. The results of this assessment will not be shared with anyone."
     "**Note:** This is not a diagnosis."
 )
 
 # Create the form
 with st.form(key='survey_form'):
-    # Section 1: Basic Information
-    st.markdown("## Basic Information")
+    # Section 1
+    st.markdown("<h2 class='section-header'>Background Information</h2>", unsafe_allow_html=True)
     gender = st.selectbox("What is your gender?", ["Male", "Female"], key='gender')
     age = st.number_input("What is your age?", min_value=1, max_value=100, value=20, key='age')
 
     st.markdown("---")
 
-    # Section 2: Academic & Work
-    st.markdown("## Academics & Work")
+    # Section 2
+    st.markdown("<h2 class='section-header'>Academics & Work</h2>", unsafe_allow_html=True)
     academic_pressure = st.slider("Rate your academic pressure (1 = Very Low, 5 = Very High):", 1, 5, key='academic_pressure')
     work_pressure = st.slider("Rate your work pressure (1 = Very Low, 5 = Very High):", 1, 5, key='work_pressure')
     study_satisfaction = st.slider("Rate your study satisfaction (1 = Very Dissatisfied, 5 = Very Satisfied):", 1, 5, key='study_satisfaction')
@@ -34,8 +169,8 @@ with st.form(key='survey_form'):
 
     st.markdown("---")
 
-    # Section 3: Lifestyle & Health
-    st.markdown("## Lifestyle & Health")
+    # Section 3
+    st.markdown("<h2 class='section-header'>Lifestyle & Health</h2>", unsafe_allow_html=True)
     sleep_duration = st.selectbox("How many hours do you sleep on average?", 
                                 ["Less than 6", "6-7", "7-8", "8-9", "More than 9"], 
                                 key='sleep_duration')
@@ -45,15 +180,15 @@ with st.form(key='survey_form'):
 
     st.markdown("---")
 
-    # Section 4: Mental Health History
-    st.markdown("## Mental Health History")
+    # Section 4
+    st.markdown("<h2 class='section-header'>Mental Health History</h2>", unsafe_allow_html=True)
     suicidal_thoughts = st.selectbox("Have you ever had suicidal thoughts?", ["Yes", "No"], key='suicidal_thoughts')
     family_history = st.selectbox("Do you have a family history of mental illness?", ["Yes", "No"], key='family_history')
 
     st.markdown("---")
 
-    # Section 5: Financial Stress
-    st.markdown("## Financial Stress")
+    # Section 5
+    st.markdown("<h2 class='section-header'>Financial Stress</h2>", unsafe_allow_html=True)
     financial_stress = st.slider("Rate your financial stress (1 = Very Low, 5 = Very High):", 1, 5, key='financial_stress')
 
     st.markdown("---")
@@ -84,7 +219,7 @@ if submitted:
     # Get predictions
     results = process_user_assessment(assessment_data)
     
-    st.header("Your Results")
+    st.markdown("<h1>Your Results</h1>", unsafe_allow_html=True)
 
     # Display overall risk assessment
     st.subheader("Depression Risk Assessment")
@@ -115,7 +250,8 @@ if submitted:
     st.markdown("---")
 
     # Personalized recommendations based on risk level
-    st.header("Personalized Recommendations")
+    st.markdown("<div class='section-banner'><h1>Personalized Recommendations</h1></div>", unsafe_allow_html=True)
+    st.markdown("<p>Based on your results, we suggest you:</p>", unsafe_allow_html=True)
     
     # Base recommendations that apply to everyone
     base_recommendations = [
@@ -126,29 +262,39 @@ if submitted:
     
     # Risk-specific recommendations
     if risk_level == "Low":
-        recommendations = base_recommendations + [
+        recommendations = [
             "Continue your current positive lifestyle habits",
             "Consider starting a mindfulness or meditation practice",
             "Set regular check-ins with yourself to monitor your mental health"
-        ]
+        ] + base_recommendations
     elif risk_level == "Moderate":
-        recommendations = base_recommendations + [
+        recommendations = [
             "Consider speaking with a mental health professional",
             "Practice stress-reduction techniques daily",
             "Establish a support network of trusted friends or family",
             "Monitor your mood using a journal or mood tracking app"
-        ]
+        ] + base_recommendations
     else:  # High risk
-        recommendations = base_recommendations + [
+        recommendations = [
             "**Strongly recommended:** Schedule an appointment with a mental health professional",
             "Reach out to a trusted friend or family member about your feelings",
             "Contact a mental health crisis hotline if you need immediate support",
             "Create a daily routine that includes regular meals and exercise",
             "Avoid making major life decisions until you've consulted with a professional"
-        ]
+        ] + base_recommendations
     
     for rec in recommendations:
-        st.write(f"• {rec}")
+        st.markdown(f"<li style='margin-bottom: 0.5rem;'>{rec}</li>", unsafe_allow_html=True)
+
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        button_col1, gap, button_col2 = st.columns([1, 0.2, 1])
+        with button_col1:
+            st.button("Start Relaxation Exercise", use_container_width=True)
+        with button_col2:
+            st.button("Find Local Help", use_container_width=True)
+
 
     # Add crisis resources if risk is high
     if risk_level == "High":
