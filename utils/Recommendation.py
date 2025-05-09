@@ -5,9 +5,14 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
 
 # Load and clean data
-df = pd.read_csv("../student_depression_dataset.csv")
+import os
 
-# Rename columns
+BASE_DIR = os.path.dirname(__file__)
+csv_path = os.path.join(BASE_DIR, '..', 'student_depression_dataset.csv')
+df = pd.read_csv(csv_path)
+
+
+# Rename columns to match our code usage
 df = df.rename(columns={
     'Gender': 'gender',
     'Age': 'age',
@@ -24,7 +29,7 @@ df = df.rename(columns={
     'Depression': 'depression'
 })
 
-# Drop irrelevant columns
+
 df = df.drop(columns=['id', 'City', 'Degree', 'Profession', 'CGPA'])
 
 # Split
@@ -32,6 +37,7 @@ train_data, test_data = train_test_split(df, test_size=0.2, random_state=42)
 y_train = train_data['depression'].values
 y_test = test_data['depression'].values
 
+# Define qualitative and quantitative variables with consistent snake_case naming
 quali_vars = ['gender', 'sleep_duration', 'dietary_habits', 'suicidal_thoughts', 'family_history',
             'work_pressure', 'academic_pressure', 'study_satisfaction', 'job_satisfaction', 'financial_stress']
 quanti_vars = ['age', 'work_study_hours']
@@ -259,7 +265,7 @@ def process_user_assessment(assessment_data):
     """
     # Create a single row dataframe with the same structure as our training data
     user_data = pd.DataFrame([{
-        'gender': assessment_data['gender'].lower(),
+        'gender': assessment_data['gender'].lower(),  # Convert to lowercase to match our features
         'age': float(assessment_data['age']),
         'work_study_hours': float(assessment_data['work_study_hours']),
         'academic_pressure': assessment_data['academic_pressure'],
@@ -280,7 +286,6 @@ def process_user_assessment(assessment_data):
     ])
 
     # Process categorical variables
-    user_data[quali_vars] = user_data[quali_vars].fillna("missing").astype("category")
     X_user_quali = encoder.transform(user_data[quali_vars])
 
     # Combine features

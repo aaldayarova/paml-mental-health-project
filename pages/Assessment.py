@@ -1,64 +1,59 @@
 import streamlit as st
-import Recommendation
-
 import sys
-import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from pathlib import Path
+
+# Add the parent directory to sys.path to allow imports from sibling modules
+sys.path.append(str(Path(__file__).parent))
+from utils.Recommendation import process_user_assessment
 
 st.title("Mental Health Prediction & Support")
 
 st.write(
     "This assessment collects information about your lifestyle and well-being. "
     "Your answers will be used to provide personalized insights and support. "
+    "Your answers will remain confidential and anynonmous. The results of this assessment will not be shared with anyone. "
     "**Note:** This is not a diagnosis."
 )
 
 # Create the form
 with st.form(key='survey_form'):
-    # Section 1: Demographics
-    st.markdown("## Demographics")
-    gender = st.selectbox("What is your gender?", ["Male", "Female", "Other", "Prefer not to say"], key='gender')
-    age = st.text_input("What is your age?", key='age')
+    # Section 1: Basic Information
+    st.markdown("## Basic Information")
+    gender = st.selectbox("What is your gender?", ["Male", "Female"], key='gender')
+    age = st.number_input("What is your age?", min_value=1, max_value=100, value=20, key='age')
 
     st.markdown("---")
 
-    # Section 2: Academic & Work Pressure
-    st.markdown("## Academic & Work Pressure")
+    # Section 2: Academic & Work
+    st.markdown("## Academics & Work")
     academic_pressure = st.slider("Rate your academic pressure (1 = Very Low, 5 = Very High):", 1, 5, key='academic_pressure')
     work_pressure = st.slider("Rate your work pressure (1 = Very Low, 5 = Very High):", 1, 5, key='work_pressure')
-
-    st.markdown("---")
-
-    # Section 3: Satisfaction
-    st.markdown("## Satisfaction")
     study_satisfaction = st.slider("Rate your study satisfaction (1 = Very Dissatisfied, 5 = Very Satisfied):", 1, 5, key='study_satisfaction')
     job_satisfaction = st.slider("Rate your job satisfaction (1 = Very Dissatisfied, 5 = Very Satisfied):", 1, 5, key='job_satisfaction')
+    work_study_hours = st.number_input("How many hours per week do you work/study?", min_value=0.0, max_value=168.0, value=40.0, step=1.0, key='work_study_hours')
 
     st.markdown("---")
 
-    # Section 4: Sleep Patterns
-    st.markdown("## Sleep Patterns")
-    sleep_duration = st.number_input("On average, how many hours do you sleep per night?", min_value=0.0, step=0.5, format="%.1f", key='sleep_duration')
-    st.radio("Rate your sleep quality:", ["Very Poor", "Poor", "Average", "Good", "Excellent"], key='sleep_quality')
+    # Section 3: Lifestyle & Health
+    st.markdown("## Lifestyle & Health")
+    sleep_duration = st.selectbox("How many hours do you sleep on average?", 
+                                ["Less than 6", "6-7", "7-8", "8-9", "More than 9"], 
+                                key='sleep_duration')
+    dietary_habits = st.selectbox("How would you rate your dietary habits?", 
+                                ["Poor", "Average", "Good"], 
+                                key='dietary_habits')
 
     st.markdown("---")
 
-    # Section 5: Lifestyle
-    st.markdown("## Lifestyle")
-    dietary_habits = st.radio("How would you describe your dietary habits?", ["Poor", "Average", "Good"], key='dietary_habits')
-    work_study_hours = st.number_input("How many hours per week do you work/study?", min_value=0.0, step=1.0, key='work_study_hours')
-
-    st.markdown("---")
-
-    # Section 6: Mental Health History
+    # Section 4: Mental Health History
     st.markdown("## Mental Health History")
-    suicidal_thoughts = st.radio("Have you ever had suicidal thoughts?", ["Yes", "No"], key='suicidal_thoughts')
-    family_history = st.radio("Do you have a family history of mental illness?", ["Yes", "No"], key='family_history')
+    suicidal_thoughts = st.selectbox("Have you ever had suicidal thoughts?", ["Yes", "No"], key='suicidal_thoughts')
+    family_history = st.selectbox("Do you have a family history of mental illness?", ["Yes", "No"], key='family_history')
 
     st.markdown("---")
 
-    # Section 7: Financial & Emotional Stress
-    st.markdown("## Financial & Emotional Stress")
+    # Section 5: Financial Stress
+    st.markdown("## Financial Stress")
     financial_stress = st.slider("Rate your financial stress (1 = Very Low, 5 = Very High):", 1, 5, key='financial_stress')
 
     st.markdown("---")
@@ -67,33 +62,6 @@ with st.form(key='survey_form'):
     submitted = st.form_submit_button("Submit")
 
 # Show results after submission
-# if submitted:
-#     st.success("Thank you for completing the assessment!")
-#     st.header("Your Results")
-    
-#     depression_risk = 27  # placeholder
-    
-#     st.subheader("Depression Risk")
-#     st.metric(label="Risk Level", value=f"{depression_risk}%")
-#     if depression_risk < 30:
-#         st.write("Low risk of depression.")
-#     elif depression_risk < 70:
-#         st.write("Moderate risk of depression.")
-#     else:
-#         st.write("High risk of depression. Consider seeking professional advice.")
-
-
-#     st.markdown("---")
-
-#     # Recommendations section
-#     st.header("Personalized Recommendations")
-#     st.write("""
-#     - Practice 20 minutes of relaxation or mindfulness daily.
-#     - Maintain a regular sleep schedule and reduce screen time before bed.
-#     - Reach out to a counselor or mental health professional if symptoms persist.
-#     - Stay connected with supportive friends and family.
-#     """)
-
 if submitted:
     st.success("Thank you for completing the assessment!")
     
@@ -114,7 +82,7 @@ if submitted:
     }
 
     # Get predictions
-    results = Recommendation.process_user_assessment(assessment_data)
+    results = process_user_assessment(assessment_data)
     
     st.header("Your Results")
 
@@ -194,4 +162,3 @@ if submitted:
 
     st.markdown("---")
     st.info("Remember: This assessment is not a diagnosis. If you're concerned about your mental health, please consult with a qualified mental health professional.")
-
