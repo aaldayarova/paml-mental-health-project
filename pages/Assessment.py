@@ -8,6 +8,119 @@ from utils.Recommendation import process_user_assessment
 # validation styling
 st.markdown("""
 <style>
+    /* Main container styling */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    /* Header styling */
+    h1 {
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+    }
+    
+    h2 {
+        font-weight: 600;
+        color: #333333;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+            
+    /* Section headers styling */
+    .section-header {
+        color: #333333;
+        font-weight: 600;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+            
+    .section-banner {
+        background-color: #F6F6F8;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    /* Form styling */
+    .stForm {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+            
+    /* Input field styling */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input {
+        border-radius: 5px;
+        border: 1px solid #E0E0E0;
+        padding: 10px;
+    }
+    
+    /* Slider styling */
+    .stSlider {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+            
+    /* Radio button styling */
+    .stRadio > div {
+        padding: 10px 0;
+    }
+            
+    /* Select box styling */
+    .stSelectbox > div > div > div {
+        border-radius: 5px;
+        border: 1px solid #E0E0E0;
+    }
+    
+    /* Button styling */
+    .stButton>button {
+        background-color: #4B7BF5;
+        color: white;
+        font-weight: 500;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        border: none;
+        transition: background-color 0.3s;
+    }
+    
+    .stButton>button:hover {
+        background-color: #3A6AD4;
+        color: white;
+    }
+            
+    /* Section divider */
+    hr {
+        margin: 2rem 0;
+        border: none;
+        height: 1px;
+        background-color: #e0e0e0;
+    }
+    
+    /* Results cards styling */
+    .results-card {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Gauge styling */
+    .gauge-container {
+        text-align: center;
+        padding: 1rem 0;
+    }
+    
+    /* Recommendations styling */
+    .recommendation-item {
+        padding: 0.5rem 0;
+    }
+    
 .error-border {
     border: 2px solid red !important;
     border-radius: 4px;
@@ -38,7 +151,7 @@ st.write(
 
 with st.form(key='survey_form'):
     # Section 1: Personal Information
-    st.header("Personal Information")
+    st.markdown("<h2 class='section-header'>Personal Information</h2>", unsafe_allow_html=True)
     
     gender = st.selectbox(
         "What is your assigned sex at birth?",
@@ -56,10 +169,10 @@ with st.form(key='survey_form'):
     )
     
     # Section 2: Academics and Work
-    st.header("Academics and Work")
+    st.markdown("<h2 class='section-header'>Academics & Work</h2>", unsafe_allow_html=True)
     
     work_study_hours = st.slider(
-        "How many hours do you work/study per day?",
+        "How many hours per day do you work/study?",
         min_value=0,
         max_value=24,
         value=0,
@@ -75,7 +188,7 @@ with st.form(key='survey_form'):
     )
     
     work_pressure = st.slider(
-        "Rate your work pressure:",
+        "Rate your work pressure (1 = Very Low, 5 = Very High)",
         min_value=1,
         max_value=5,
         value=1,
@@ -83,7 +196,7 @@ with st.form(key='survey_form'):
     )
     
     study_satisfaction = st.slider(
-        "Rate your satisfaction with your studies:",
+        "Rate your study satisfaction (1 = Very Dissatisfied, 5 = Very Satisfied):",
         min_value=1,
         max_value=5,
         value=1,
@@ -98,12 +211,12 @@ with st.form(key='survey_form'):
         key="job_satisfaction_slider"
     )
     
-    # Section 3: Lifestyle
-    st.header("Lifestyle")
+    # Section 3: Lifestyle & Health
+    st.markdown("<h2 class='section-header'>Lifestyle & Health</h2>", unsafe_allow_html=True)
     
     sleep_duration = st.selectbox(
         "How much sleep do you typically get?",
-        options=["", "Less than 5 hours", "5-6 hours", "7-8 hours", "More than 8 hours"],
+        options=["", "Less than 5 hours", "5-6 hours", "6-7 hours", "7-8 hours", "More than 8 hours"],
         index=0,
         key="sleep_duration"
     )
@@ -116,7 +229,7 @@ with st.form(key='survey_form'):
     )
     
     # Section 4: Mental Health History
-    st.header("Mental Health History")
+    st.markdown("<h2 class='section-header'>Mental Health History</h2>", unsafe_allow_html=True)
     
     family_history = st.selectbox(
         "Is there a history of mental illness in your family?",
@@ -131,6 +244,9 @@ with st.form(key='survey_form'):
         index=0,
         key="suicidal_thoughts"
     )
+
+    # Section 5: Financial Stress
+    st.markdown("<h2 class='section-header'>Financial Stress</h2>", unsafe_allow_html=True)
     
     financial_stress = st.slider(
         "Rate your financial stress level:",
@@ -211,7 +327,7 @@ if submitted:
                 risk_level = "Moderate"
         
         # Display risk level
-        st.header("Assessment Results")
+        st.markdown("<h1>Your Results</h1>", unsafe_allow_html=True)
         
         if risk_level == "Low":
             st.markdown("### Risk Level: <span style='color:green'>Low</span>", unsafe_allow_html=True)
@@ -224,8 +340,8 @@ if submitted:
         
 
         # Recommendations section
-        st.header("Recommendations")
-        st.markdown("Based on your results, we suggest you:", unsafe_allow_html=True)
+        st.markdown("<div class='section-banner'><h1>Personalized Recommendations</h1></div>", unsafe_allow_html=True)
+        st.markdown("<p>Based on your results, we suggest you:</p>", unsafe_allow_html=True)
         
         # base recommendations that apply to everyone
         base_recommendations = [
@@ -257,7 +373,35 @@ if submitted:
             ] + base_recommendations
         
         for rec in recommendations:
-            st.markdown(f"- {rec}")
+            st.markdown(f"<li style='margin-bottom: 0.5rem;'>{rec}</li>", unsafe_allow_html=True)
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            button_col1, gap, button_col2 = st.columns([1, 0.2, 1])
+            with button_col1:
+                st.button("Start Relaxation Exercise", use_container_width=True)
+            with button_col2:
+                st.button("Find Local Help", use_container_width=True)
+
+        if risk_level == "High":
+            st.markdown("---")
+            st.markdown("### Crisis Resources")
+            st.markdown("""
+            - **National Suicide Prevention Lifeline (US):** 988 or 1-800-273-8255
+            - **Crisis Text Line:** Text HOME to 741741
+            - **The Trevor Project (for LGBTQ youth):** 1-866-488-7386 or text START to 678-678
+            - **Veterans Crisis Line:** Dial 988 then Press 1, or text 838255
+            - **Emergency Services:** 911 (US) or your local emergency number
+            
+            Remember, reaching out is a sign of strength. Help is available.
+            """)
+
+        st.markdown("---")
+        st.info("Disclaimer: This assessment is based on a machine learning model and is not a substitute for " \
+        "professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other" \
+        "qualified health provider with any questions you may have regarding a medical condition. Never disregard" \
+        "professional medical advice or delay in seeking it because of something you have read from this assessment.")
+
     else:
         # re-display the form with validation errors
         st.error("Please correct the errors and submit again")
