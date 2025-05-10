@@ -5,306 +5,259 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 from utils.Recommendation import process_user_assessment
 
+# validation styling
 st.markdown("""
 <style>
-    /* Main container styling */
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    
-    /* Header styling */
-    h1 {
-        font-weight: 600;
-        margin-bottom: 1.5rem;
-    }
-    
-    h2 {
-        font-weight: 600;
-        color: #333333;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-    }
-            
-    /* Section headers styling */
-    .section-header {
-        color: #333333;
-        font-weight: 600;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #e0e0e0;
-    }
-            
-    .section-banner {
-        background-color: #F6F6F8;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    
-    /* Form styling */
-    .stForm {
-        background-color: #FFFFFF;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-            
-    /* Input field styling */
-    .stTextInput > div > div > input,
-    .stNumberInput > div > div > input {
-        border-radius: 5px;
-        border: 1px solid #E0E0E0;
-        padding: 10px;
-    }
-    
-    /* Slider styling */
-    .stSlider {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
-            
-    /* Radio button styling */
-    .stRadio > div {
-        padding: 10px 0;
-    }
-            
-    /* Select box styling */
-    .stSelectbox > div > div > div {
-        border-radius: 5px;
-        border: 1px solid #E0E0E0;
-    }
-    
-    /* Button styling */
-    .stButton>button {
-        background-color: #4B7BF5;
-        color: white;
-        font-weight: 500;
-        border-radius: 5px;
-        padding: 0.5rem 1rem;
-        border: none;
-        transition: background-color 0.3s;
-    }
-    
-    .stButton>button:hover {
-        background-color: #3A6AD4;
-    }
-            
-    /* Section divider */
-    hr {
-        margin: 2rem 0;
-        border: none;
-        height: 1px;
-        background-color: #e0e0e0;
-    }
-    
-    /* Results cards styling */
-    .results-card {
-        background-color: #FFFFFF;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        margin-bottom: 1.5rem;
-    }
-    
-    /* Gauge styling */
-    .gauge-container {
-        text-align: center;
-        padding: 1rem 0;
-    }
-    
-    /* Recommendations styling */
-    .recommendation-item {
-        padding: 0.5rem 0;
-    }
-    
-    /* Action buttons styling */
-    .action-button {
-        background-color: #4B7BF5;
-        color: white;
-        padding: 0.75rem 1.5rem;
-        border-radius: 5px;
-        text-align: center;
-        margin-top: 1rem;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    
-    .action-button.secondary {
-        background-color: #8BA3E0;
-    }
-    
-    .action-button:hover {
-        background-color: #3A6AD4;
-    }
+.error-border {
+    border: 2px solid red !important;
+    border-radius: 4px;
+}
+.error-message {
+    color: red;
+    font-size: 0.8em;
+    margin-top: -1em;
+    margin-bottom: 1em;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Mental Health Prediction & Support")
+# initialize session state for validation
+if 'validation_errors' not in st.session_state:
+    st.session_state.validation_errors = {}
+if 'form_submitted' not in st.session_state:
+    st.session_state.form_submitted = False
 
+st.title("Mental Health Prediction & Support")
 st.write(
-    "This assessment collects information about your lifestyle and well-being."
-    "Your answers will be used to provide insights in your mental health and offer personalized support and recommendations."
-    "Your answers will remain confidential and anonymous. The results of this assessment will not be shared with anyone."
+    "This assessment collects information about your lifestyle and well-being. "
+    "Your answers will be used to provide insights in your mental health and offer personalized support and recommendations. "
+    "Your answers will remain confidential and anonymous. The results of this assessment will not be shared with anyone. "
     "**Note:** This is not a diagnosis."
 )
 
-# Create the form
+
 with st.form(key='survey_form'):
-    # Section 1
-    st.markdown("<h2 class='section-header'>Background Information</h2>", unsafe_allow_html=True)
-    gender = st.selectbox("What is your gender?", ["Male", "Female"], key='gender')
-    age = st.number_input("What is your age?", min_value=1, max_value=100, value=20, key='age')
-
-    st.markdown("---")
-
-    # Section 2
-    st.markdown("<h2 class='section-header'>Academics & Work</h2>", unsafe_allow_html=True)
-    academic_pressure = st.slider("Rate your academic pressure (1 = Very Low, 5 = Very High):", 1, 5, key='academic_pressure')
-    work_pressure = st.slider("Rate your work pressure (1 = Very Low, 5 = Very High):", 1, 5, key='work_pressure')
-    study_satisfaction = st.slider("Rate your study satisfaction (1 = Very Dissatisfied, 5 = Very Satisfied):", 1, 5, key='study_satisfaction')
-    job_satisfaction = st.slider("Rate your job satisfaction (1 = Very Dissatisfied, 5 = Very Satisfied):", 1, 5, key='job_satisfaction')
-    work_study_hours = st.number_input("How many hours per week do you work/study?", min_value=0.0, max_value=168.0, value=40.0, step=1.0, key='work_study_hours')
-
-    st.markdown("---")
-
-    # Section 3
-    st.markdown("<h2 class='section-header'>Lifestyle & Health</h2>", unsafe_allow_html=True)
-    sleep_duration = st.selectbox("How many hours do you sleep on average?", 
-                                ["Less than 6", "6-7", "7-8", "8-9", "More than 9"], 
-                                key='sleep_duration')
-    dietary_habits = st.selectbox("How would you rate your dietary habits?", 
-                                ["Poor", "Average", "Good"], 
-                                key='dietary_habits')
-
-    st.markdown("---")
-
-    # Section 4
-    st.markdown("<h2 class='section-header'>Mental Health History</h2>", unsafe_allow_html=True)
-    suicidal_thoughts = st.selectbox("Have you ever had suicidal thoughts?", ["Yes", "No"], key='suicidal_thoughts')
-    family_history = st.selectbox("Do you have a family history of mental illness?", ["Yes", "No"], key='family_history')
-
-    st.markdown("---")
-
-    # Section 5
-    st.markdown("<h2 class='section-header'>Financial Stress</h2>", unsafe_allow_html=True)
-    financial_stress = st.slider("Rate your financial stress (1 = Very Low, 5 = Very High):", 1, 5, key='financial_stress')
-
-    st.markdown("---")
-
-    # Submit button
+    # Section 1: Personal Information
+    st.header("Personal Information")
+    
+    gender = st.selectbox(
+        "What is your assigned sex at birth?",
+        options=["", "Male", "Female"],
+        index=0,
+        key="gender"
+    )
+    
+    age = st.number_input(
+        "What is your age?",
+        min_value=0,
+        max_value=120,
+        value=0,
+        key="age"
+    )
+    
+    # Section 2: Academics and Work
+    st.header("Academics and Work")
+    
+    work_study_hours = st.slider(
+        "How many hours do you work/study per day?",
+        min_value=0,
+        max_value=24,
+        value=0,
+        key="work_study_hours"
+    )
+    
+    academic_pressure = st.slider(
+        "Rate your academic pressure:",
+        min_value=1,
+        max_value=5,
+        value=1,
+        key="academic_pressure_slider"
+    )
+    
+    work_pressure = st.slider(
+        "Rate your work pressure:",
+        min_value=1,
+        max_value=5,
+        value=1,
+        key="work_pressure_slider"
+    )
+    
+    study_satisfaction = st.slider(
+        "Rate your satisfaction with your studies:",
+        min_value=1,
+        max_value=5,
+        value=1,
+        key="study_satisfaction_slider"
+    )
+    
+    job_satisfaction = st.slider(
+        "Rate your job satisfaction:",
+        min_value=1,
+        max_value=5,
+        value=1,
+        key="job_satisfaction_slider"
+    )
+    
+    # Section 3: Lifestyle
+    st.header("Lifestyle")
+    
+    sleep_duration = st.selectbox(
+        "How much sleep do you typically get?",
+        options=["", "Less than 5 hours", "5-6 hours", "7-8 hours", "More than 8 hours"],
+        index=0,
+        key="sleep_duration"
+    )
+    
+    dietary_habits = st.selectbox(
+        "How would you describe your dietary habits?",
+        options=["", "Healthy", "Moderate", "Unhealthy"],
+        index=0,
+        key="dietary_habits"
+    )
+    
+    # Section 4: Mental Health History
+    st.header("Mental Health History")
+    
+    family_history = st.selectbox(
+        "Is there a history of mental illness in your family?",
+        options=["", "Yes", "No"],
+        index=0,
+        key="family_history"
+    )
+    
+    suicidal_thoughts = st.selectbox(
+        "Have you ever had suicidal thoughts?",
+        options=["", "Yes", "No"],
+        index=0,
+        key="suicidal_thoughts"
+    )
+    
+    financial_stress = st.slider(
+        "Rate your financial stress level:",
+        min_value=1,
+        max_value=5,
+        value=1,
+        key="financial_stress_slider"
+    )
+    
+    # if there are validation errors
+    if st.session_state.validation_errors:
+        st.error("Please fill in all required fields")
+        for field, error in st.session_state.validation_errors.items():
+            st.markdown(f'<p class="error-message">{error}</p>', unsafe_allow_html=True)
+    
     submitted = st.form_submit_button("Submit")
 
-# Show results after submission
+# handle form submission and validation
 if submitted:
-    st.success("Thank you for completing the assessment!")
+    # reset validation errors
+    st.session_state.validation_errors = {}
+    st.session_state.form_submitted = True
     
-    # Collect all form data
-    assessment_data = {
-        'gender': gender,
-        'age': age,
-        'academic_pressure': academic_pressure,
-        'work_pressure': work_pressure,
-        'study_satisfaction': study_satisfaction,
-        'job_satisfaction': job_satisfaction,
-        'sleep_duration': sleep_duration,
-        'dietary_habits': dietary_habits,
-        'work_study_hours': work_study_hours,
-        'suicidal_thoughts': suicidal_thoughts,
-        'financial_stress': financial_stress,
-        'family_history': family_history
+    # validate non-slider fields
+    required_fields = {
+        'gender': "Gender is required",
+        'age': "Age is required",
+        'sleep_duration': "Sleep duration information is required",
+        'dietary_habits': "Dietary habits information is required",
+        'suicidal_thoughts': "Suicidal thoughts information is required",
+        'family_history': "Family history information is required"
     }
-
-    # Get predictions
-    results = process_user_assessment(assessment_data)
     
-    st.markdown("<h1>Your Results</h1>", unsafe_allow_html=True)
-
-    # Display overall risk assessment
-    st.subheader("Depression Risk Assessment")
-    risk_score = results['confidence']
-    st.metric(label="Risk Level", value=f"{risk_score:.1f}%")
-
-    # Create three columns for individual model predictions
-    col1, col2, col3 = st.columns(3)
+    for field, error_msg in required_fields.items():
+        if field == 'age':
+            # check number fields
+            if locals()[field] is None or locals()[field] == 0:
+                st.session_state.validation_errors[field] = error_msg
+        else:
+            # check text fields
+            if not locals()[field]:
+                st.session_state.validation_errors[field] = error_msg
     
-    with col1:
-        st.metric("Linear Model", f"{results['individual_scores']['linear']:.1f}%")
-    with col2:
-        st.metric("SVM Model", f"{results['individual_scores']['svm']:.1f}%")
-    with col3:
-        st.metric("Logistic Model", f"{results['individual_scores']['logistic']:.1f}%")
+    # if no validation errors, process the form
+    if not st.session_state.validation_errors:
+        # collect all form data
+        assessment_data = {
+            'gender': gender,
+            'age': age,
+            'family_history': family_history,
+            'work_study_hours': work_study_hours,
+            'academic_pressure': academic_pressure,
+            'work_pressure': work_pressure,
+            'study_satisfaction': study_satisfaction,
+            'job_satisfaction': job_satisfaction,
+            'sleep_duration': sleep_duration,
+            'dietary_habits': dietary_habits,
+            'suicidal_thoughts': suicidal_thoughts,
+            'financial_stress': financial_stress
+        }
+        
+        results = process_user_assessment(assessment_data)
+        st.success("Assessment submitted successfully!")
+        
+        logreg_pred = results['logreg_prediction']
+        logreg_confidence = results['individual_confidence']['logistic']
+        
+        # determine risk level based on logistic regression model's prediction and confidence
+        if logreg_pred: # if it predicts depression
+            if logreg_confidence > 75:
+                risk_level = "High"
+            else:
+                risk_level = "Moderate"
+        else:
+            if logreg_confidence > 75:
+                risk_level = "Low"
+            else:
+                risk_level = "Moderate"
+        
+        # Display risk level
+        st.header("Assessment Results")
+        
+        if risk_level == "Low":
+            st.markdown("### Risk Level: <span style='color:green'>Low</span>", unsafe_allow_html=True)
+        elif risk_level == "Moderate":
+            st.markdown("### Risk Level: <span style='color:orange'>Moderate</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("### Risk Level: <span style='color:red'>High</span>", unsafe_allow_html=True)
 
-    # Risk level interpretation
-    if risk_score < 30:
-        risk_level = "Low"
-        st.write("Your responses indicate a **low risk** of depression.")
-    elif risk_score < 70:
-        risk_level = "Moderate"
-        st.write("Your responses indicate a **moderate risk** of depression.")
+        st.write(f"Our machine learning model predicted this result with: {logreg_confidence:.1f}% confidence. **Note:** This is not a diagnosis.")
+        
+
+        # Recommendations section
+        st.header("Recommendations")
+        st.markdown("Based on your results, we suggest you:", unsafe_allow_html=True)
+        
+        # base recommendations that apply to everyone
+        base_recommendations = [
+            "Practice regular physical exercise for at least 30 minutes daily",
+            "Maintain a consistent sleep schedule",
+            "Stay connected with friends and family"
+        ]
+        
+        if risk_level == "Low":
+            recommendations = [
+                "Continue your current positive lifestyle habits",
+                "Consider starting a mindfulness or meditation practice",
+                "Set regular check-ins with yourself to monitor your mental health"
+            ] + base_recommendations
+        elif risk_level == "Moderate":
+            recommendations = [
+                "Consider speaking with a mental health professional",
+                "Practice stress-reduction techniques daily",
+                "Establish a support network of trusted friends or family",
+                "Monitor your mood using a journal or mood tracking app"
+            ] + base_recommendations
+        else:
+            recommendations = [
+                "**Strongly recommended:** Schedule an appointment with a mental health professional",
+                "Reach out to a trusted friend or family member about your feelings",
+                "Contact a mental health crisis hotline if you need immediate support",
+                "Create a daily routine that includes regular meals and exercise",
+                "Avoid making major life decisions until you've consulted with a professional"
+            ] + base_recommendations
+        
+        for rec in recommendations:
+            st.markdown(f"- {rec}")
     else:
-        risk_level = "High"
-        st.write("Your responses indicate a **high risk** of depression.")
-
-    st.markdown("---")
-
-    # Personalized recommendations based on risk level
-    st.markdown("<div class='section-banner'><h1>Personalized Recommendations</h1></div>", unsafe_allow_html=True)
-    st.markdown("<p>Based on your results, we suggest you:</p>", unsafe_allow_html=True)
-    
-    # Base recommendations that apply to everyone
-    base_recommendations = [
-        "Practice regular physical exercise for at least 30 minutes daily",
-        "Maintain a consistent sleep schedule",
-        "Stay connected with friends and family"
-    ]
-    
-    # Risk-specific recommendations
-    if risk_level == "Low":
-        recommendations = [
-            "Continue your current positive lifestyle habits",
-            "Consider starting a mindfulness or meditation practice",
-            "Set regular check-ins with yourself to monitor your mental health"
-        ] + base_recommendations
-    elif risk_level == "Moderate":
-        recommendations = [
-            "Consider speaking with a mental health professional",
-            "Practice stress-reduction techniques daily",
-            "Establish a support network of trusted friends or family",
-            "Monitor your mood using a journal or mood tracking app"
-        ] + base_recommendations
-    else:  # High risk
-        recommendations = [
-            "**Strongly recommended:** Schedule an appointment with a mental health professional",
-            "Reach out to a trusted friend or family member about your feelings",
-            "Contact a mental health crisis hotline if you need immediate support",
-            "Create a daily routine that includes regular meals and exercise",
-            "Avoid making major life decisions until you've consulted with a professional"
-        ] + base_recommendations
-    
-    for rec in recommendations:
-        st.markdown(f"<li style='margin-bottom: 0.5rem;'>{rec}</li>", unsafe_allow_html=True)
-
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        button_col1, gap, button_col2 = st.columns([1, 0.2, 1])
-        with button_col1:
-            st.button("Start Relaxation Exercise", use_container_width=True)
-        with button_col2:
-            st.button("Find Local Help", use_container_width=True)
-
-
-    # Add crisis resources if risk is high
-    if risk_level == "High":
-        st.markdown("---")
-        st.markdown("### Crisis Resources")
-        st.markdown("""
-        - **National Suicide Prevention Lifeline (US):** 988 or 1-800-273-8255
-        - **Crisis Text Line:** Text HOME to 741741
-        - **Emergency Services:** 911 (US) or your local emergency number
-        """)
-
-    st.markdown("---")
-    st.info("Remember: This assessment is not a diagnosis. If you're concerned about your mental health, please consult with a qualified mental health professional.")
+        # re-display the form with validation errors
+        st.error("Please correct the errors and submit again")

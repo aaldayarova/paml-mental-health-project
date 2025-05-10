@@ -272,11 +272,11 @@ def process_user_assessment(assessment_data):
         'work_pressure': assessment_data['work_pressure'],
         'study_satisfaction': assessment_data['study_satisfaction'],
         'job_satisfaction': assessment_data['job_satisfaction'],
-        'sleep_duration': assessment_data['sleep_duration'],
-        'dietary_habits': assessment_data['dietary_habits'],
-        'suicidal_thoughts': assessment_data['suicidal_thoughts'],
+        'sleep_duration': assessment_data['sleep_duration'].lower(),
+        'dietary_habits': assessment_data['dietary_habits'].lower(),
+        'suicidal_thoughts': assessment_data['suicidal_thoughts'].lower(),
         'financial_stress': assessment_data['financial_stress'],
-        'family_history': assessment_data['family_history']
+        'family_history': assessment_data['family_history'].lower()
     }])
 
     # Process quantitative variables
@@ -312,7 +312,7 @@ def process_user_assessment(assessment_data):
         'svm_prediction': bool(svm_pred > 0),
         'logreg_prediction': bool(logreg_pred),
         'confidence': average_confidence,
-        'individual_scores': {
+        'individual_confidence': {
             'linear': linear_confidence,
             'svm': svm_confidence,
             'logistic': logreg_confidence
