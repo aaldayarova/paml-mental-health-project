@@ -29,13 +29,13 @@ Install required packages using:
 pip install numpy pandas
 ```
 Run the homepage of our application using:
-
+```bash
 streamlit run home.py 
-
+```
 Run the application using:
-
+```bash
 streamlit run streamlit_app.py
-
+```
 Error Handling
 
 The script includes detailed exception handling for:
