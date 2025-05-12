@@ -28,6 +28,13 @@ Install required packages using:
 ```bash
 pip install numpy pandas
 ```
+Run the homepage of our application using:
+
+streamlit run home.py 
+
+Run the application using:
+
+streamlit run streamlit_app.py
 
 Error Handling
 
