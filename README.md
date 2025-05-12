@@ -9,6 +9,13 @@ This module provides a custom implementation of logistic regression to predict t
 - **Preprocessing pipeline** including standardization for quantitative features and one-hot encoding for categorical features.
 - **Prediction endpoint** that returns binary prediction and probability of mental health concern.
 
+## Branch Structure
+	•	master branch:
+Contains the final version of the application, including the Logistic Regression model, which we selected based on performance and interpretability. This branch includes all code, the Streamlit interface, and the full application pipeline.
+	•	svm and linear-regression branches:
+Contain code from earlier experimentation phases using Support Vector Machine (SVM) and Linear Regression models. These branches were used for model comparison and are preserved for reference, but were not chosen as the final approach.
+
+
 ## File Structure
 
 - `Recommendation.py`: Main module containing the `ScratchLogisticRegression` class and data processing logic.
@@ -55,6 +62,8 @@ The ScratchLogisticRegression class includes:
     Gradient descent with L2 regularization
 
     Custom prediction and probability estimation methods
+
+
 
 Notes
 
