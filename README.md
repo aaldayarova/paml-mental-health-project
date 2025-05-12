@@ -14,7 +14,7 @@ This module provides a custom implementation of logistic regression to predict t
 master branch:
 Contains the final version of the application, including the Logistic Regression model, which we selected based on performance and interpretability. This branch includes all code, the Streamlit interface, and the full application pipeline.
 
-svm and linear-regression branches:
+svm and linear_regres branches:
 Contain code from earlier experimentation phases using Support Vector Machine (SVM) and Linear Regression models. These branches were used for model comparison and are preserved for reference, but were not chosen as the final approach.
 
 
